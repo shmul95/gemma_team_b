@@ -21,17 +21,16 @@
             <!-- Drag and Drop Area -->
             <div id="drop-area" class="drag-drop-area flex flex-col items-center justify-center p-6 w-full h-80 rounded-lg cursor-pointer">
                 <input type="file" id="fileElem" accept="image/*" class="hidden">
-                <p class="text-gray-500 text-center mb-2">Drag & Drop IRM Image Here</p>
-                <p class="text-gray-400 text-sm">or click to select file</p>
+                <p class="text-gray-500 text-center mb-2 text-lg">Drag & Drop IRM Image Here</p> <!-- Increased text size -->
+                <p class="text-gray-400 text-base">or click to select file</p> <!-- Increased text size -->
                 <img id="image-preview" src="" alt="Image Preview" class="hidden mt-4 max-h-full max-w-full object-contain rounded-lg">
             </div>
 
             <!-- AI Precision Zone -->
             <div class="bg-gray-600 p-6 rounded-lg shadow-inner flex-grow">
-                <h3 class="text-lg font-semibold text-gray-200 mb-2">AI Precision Details:</h3>
-                <div id="precision-output" class="precision-zone text-gray-700 text-sm leading-relaxed">
-                    <!-- AI precision details will appear here -->
-                    <p class="text-gray-400">Drop an image to see AI analysis details.</p>
+                <h3 class="text-3xl font-semibold text-gray-200 mb-2">AI Precision Details:</h3> <!-- Increased text size -->
+                <div id="precision-output" class="precision-zone text-gray-300 text-2xl text-base leading-relaxed"> <!-- Increased text size -->
+                    <p class="text-gray-400 text-base">Drop an image to see AI analysis details.</p> <!-- Increased text size -->
                 </div>
             </div>
         </div>
@@ -39,14 +38,9 @@
         <!-- Right Column: Diagnostic Output -->
         <div class="flex flex-col lg:w-1/2">
             <div class="bg-gray-600 p-8 rounded-xl shadow-md flex-grow diagnostic-text">
-                <h2 class="text-2xl font-bold text-gray-200 mb-4">AI Diagnostic:</h2>
-                <div id="diagnostic-output" class="text-gray-400 text-xl font-medium leading-relaxed">
-                    <!-- AI diagnostic will appear here -->
-                    <p>Awaiting image for diagnostic...</p>
-                </div>
-                <div id="loading-indicator" class="hidden mt-4 text-grey-600 font-semibold">
-                    Analyzing image...
-                </div>
+                <h2 class="text-3xl font-bold text-gray-200 mb-4">AI Diagnostic:</h2> <!-- Increased text size -->
+                <div id="diagnostic-output" class="text-gray-300 text-2xl font-medium leading-relaxed"></div>
+                <div id="loading-indicator" class="hidden mt-4 text-grey-600 font-semibold text-xl"></div>
             </div>
         </div>
     </div>
@@ -58,8 +52,6 @@
         const diagnosticOutput = document.getElementById('diagnostic-output');
         const precisionOutput = document.getElementById('precision-output');
         const loadingIndicator = document.getElementById('loading-indicator');
-        const themeToggle = document.getElementById('theme-toggle');
-        const body = document.body;
 
         // Prevent default drag behaviors
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -134,8 +126,8 @@
 
         async function uploadFile(file) {
             loadingIndicator.classList.remove('hidden');
-            diagnosticOutput.innerHTML = '<p class="text-gray-500">Analyzing image...</p>';
-            precisionOutput.innerHTML = '<p class="text-gray-500">Waiting for AI precision details...</p>';
+            diagnosticOutput.innerHTML = '<p class="text-gray-500 text-lg">Analyzing image...</p>'; <!-- Updated text size here too -->
+            precisionOutput.innerHTML = '<p class="text-gray-500 text-base">Waiting for AI precision details...</p>'; <!-- Updated text size here too -->
 
             const formData = new FormData();
             formData.append('file', file);
@@ -153,36 +145,19 @@
                 const result = await response.json();
 
                 if (result.error) {
-                    diagnosticOutput.innerHTML = `<p class="text-red-600">Error: ${result.error}</p>`;
-                    precisionOutput.innerHTML = `<p class="text-red-600">Error during analysis.</p>`;
+                    diagnosticOutput.innerHTML = `<p class="text-red-600 text-lg">Error: ${result.error}</p>`; <!-- Updated text size -->
+                    precisionOutput.innerHTML = `<p class="text-red-600 text-base">Error during analysis.</p>`; <!-- Updated text size -->
                 } else {
                     diagnosticOutput.innerHTML = `<p>${result.diagnostic}</p>`;
                     precisionOutput.innerHTML = `<p>${result.precision}</p>`;
                 }
             } catch (error) {
                 console.error('Upload failed:', error);
-                diagnosticOutput.innerHTML = `<p class="text-red-600">Failed to get diagnostic. Please try again.</p>`;
-                precisionOutput.innerHTML = `<p class="text-red-600">Could not retrieve precision details.</p>`;
+                diagnosticOutput.innerHTML = `<p class="text-red-600 text-lg">Failed to get diagnostic. Please try again.</p>`; <!-- Updated text size -->
+                precisionOutput.innerHTML = `<p class="text-red-600 text-base">Could not retrieve precision details.</p>`; <!-- Updated text size -->
             } finally {
                 loadingIndicator.classList.add('hidden');
             }
-        }
-
-        // Custom message box function (replaces alert)
-        function displayMessageBox(message) {
-            const messageBox = document.createElement('div');
-            messageBox.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-            messageBox.innerHTML = `
-                <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
-                    <p class="text-lg font-semibold mb-4">${message}</p>
-                    <button id="message-box-ok" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">OK</button>
-                </div>
-            `;
-            document.body.appendChild(messageBox);
-
-            document.getElementById('message-box-ok').addEventListener('click', () => {
-                document.body.removeChild(messageBox);
-            });
         }
     </script>
 </body>

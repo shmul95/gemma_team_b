@@ -1,12 +1,12 @@
 # app.py
 from flask import Flask, render_template, request, jsonify
 import os
-import base64
-import time # Keep for potential simulation fallback
-import random # Keep for potential simulation fallback
+import base64 # Still needed if you want to keep image preview logic, but not for dummy AI
+import time # Used for simulating AI processing time
+import random # Used for selecting dummy diagnostic/precision
 
-# Import Google Cloud Vertex AI client library
-from google.cloud import aiplatform
+# Removed: from google.cloud import aiplatform
+# Removed: from dotenv import load_dotenv
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
@@ -14,32 +14,8 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# --- Vertex AI Configuration ---
-# !!! IMPORTANT: Replace these with your actual Vertex AI details !!!
-PROJECT_ID = "YOUR_PROJECT_ID" # e.g., "my-gcp-project-12345"
-LOCATION = "YOUR_REGION"     # e.g., "us-central1"
-ENDPOINT_ID = "YOUR_ENDPOINT_ID" # e.g., "1234567890123456789"
-# This depends on your endpoint configuration (dedicated or auto-scaling)
-USE_DEDICATED_ENDPOINT = False # Set to True or False based on your deployment
-
-# Initialize Vertex AI client
-# aiplatform.init(project=PROJECT_ID, location=LOCATION)
-# The client will automatically pick up GOOGLE_APPLICATION_CREDENTIALS
-# or default credentials if running on GCP infrastructure.
-
-# Get the endpoint object
-# try:
-#     endpoint_name = f"projects/{PROJECT_ID}/locations/{LOCATION}/endpoints/{ENDPOINT_ID}"
-#     # For a deployed model, you might load it like this:
-#     # endpoint = aiplatform.Endpoint(endpoint_name=endpoint_name)
-#     # Or if using a specific model version or client:
-#     # client = aiplatform.gapic.PredictionServiceClient(client_options={"api_endpoint": f"{LOCATION}-aiplatform.googleapis.com"})
-#     # endpoint = client.get_endpoint(name=endpoint_name)
-# except Exception as e:
-#     print(f"Error initializing Vertex AI endpoint: {e}")
-#     # Handle this error appropriately in a real app, e.g., exit or disable AI features.
-#     endpoint = None # Set to None if initialization fails
-
+# Removed: Vertex AI Configuration (PROJECT_ID, LOCATION, ENDPOINT_ID, USE_DEDICATED_ENDPOINT)
+# Removed: Validation for environment variables
 
 @app.route('/')
 def index():
@@ -49,7 +25,8 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """
-    Handles file uploads and sends the image to a Vertex AI model for processing.
+    Handles file uploads. For this maquette, it simulates a diagnostic response
+    without connecting to an external AI service.
     """
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -58,78 +35,38 @@ def upload_file():
         return jsonify({'error': 'No selected file'}), 400
 
     if file:
-        try:
-            # Read image content as bytes
-            image_bytes = file.read()
+        filename = file.filename
+        # Removed: image_bytes = file.read()
+        # Removed: base64_image = base64.b64encode(image_bytes).decode('utf-8')
 
-            # Encode image to base64
-            # Vertex AI expects the base64 string without the "data:image/png;base64," prefix
-            base64_image = base64.b64encode(image_bytes).decode('utf-8')
+        # Simulate AI processing time
+        time.sleep(random.uniform(1, 3))
 
-            # Define system instruction and prompt for the AI model
-            system_instruction = "You are an expert radiologist."
-            prompt_text = "Describe this X-ray in detail, focusing on any abnormalities or key observations relevant to a medical diagnostic."
+        # Simulate AI diagnostic and precision with dummy values
+        diagnostics = [
+            "Simulated: Potential anomaly detected.",
+            "Simulated: Normal scan results.",
+            "Simulated: Further investigation recommended.",
+            "Simulated: Minor variations observed.",
+            "Simulated: Clear indications of a specific condition."
+        ]
+        precisions = [
+            "Simulated details: The AI identified a subtle density variation in the superior lobe, consistent with early-stage fibrous tissue.",
+            "Simulated details: No significant deviations from expected anatomical structures were found. All measurements are within normal ranges.",
+            "Simulated details: A suspicious lesion with irregular borders was noted in the inferior medial quadrant, requiring immediate clinical correlation.",
+            "Simulated details: Slight fluid accumulation was observed in the anterior chamber, which could be a benign finding but warrants monitoring.",
+            "Simulated details: Distinct patterns of cellular proliferation were identified across multiple sections, strongly suggestive of a neoplastic process."
+        ]
 
-            formatted_prompt = f"{system_instruction} {prompt_text}"
+        simulated_diagnostic = random.choice(diagnostics)
+        simulated_precision = random.choice(precisions)
 
-            # Construct the instance payload for Vertex AI
-            instances = [
-                {
-                    "prompt": formatted_prompt,
-                    "multi_modal_data": {"image": {"bytes_base64_encoded": base64_image}},
-                    "max_output_tokens": 500, # Use max_output_tokens for Gemini models
-                    "temperature": 0.2, # A slightly higher temperature for more descriptive output
-                    # "raw_response": True, # This parameter might not be directly supported or needed for all Gemini models
-                },
-            ]
-
-            # Initialize Vertex AI client and endpoint within the request context
-            # This ensures the client is fresh for each request, though for performance
-            # in production, you might initialize 'client' globally and 'endpoint' once.
-            aiplatform.init(project=PROJECT_ID, location=LOCATION)
-            endpoint = aiplatform.Endpoint(endpoint_name=f"projects/{PROJECT_ID}/locations/{LOCATION}/endpoints/{ENDPOINT_ID}")
-
-
-            # Make the prediction request
-            print(f"Sending request to Vertex AI endpoint: {endpoint.resource_name}")
-            response = endpoint.predict(instances=instances, parameters={}) # parameters can be an empty dict if not needed
-
-            # Extract the prediction
-            if response.predictions and len(response.predictions) > 0:
-                # The structure of predictions can vary. For text generation, it's often a string.
-                prediction_output = response.predictions[0]
-
-                # Assuming the prediction is directly the diagnostic text
-                diagnostic_result = str(prediction_output) # Ensure it's a string
-
-                # For precision, we can state that the diagnostic is detailed
-                precision_result = "The AI provided a detailed radiological description based on the image analysis."
-
-                return jsonify({
-                    'message': f'File {file.filename} analyzed by AI.',
-                    'diagnostic': diagnostic_result,
-                    'precision': precision_result,
-                    'filename': file.filename
-                })
-            else:
-                return jsonify({
-                    'error': 'AI model returned no predictions.',
-                    'diagnostic': 'No diagnostic available.',
-                    'precision': 'AI model did not provide a valid response.'
-                }), 500
-
-        except Exception as e:
-            # Log the full error for debugging
-            print(f"Error during AI prediction: {e}")
-            import traceback
-            traceback.print_exc() # Print full traceback to console
-
-            # Fallback or error message for the user
-            return jsonify({
-                'error': f'Failed to analyze image with AI service. Error: {str(e)}',
-                'diagnostic': 'AI analysis failed.',
-                'precision': 'Please ensure Vertex AI endpoint is correctly configured and accessible.'
-            }), 500
+        return jsonify({
+            'message': f'File {filename} received. Simulating AI analysis...',
+            'diagnostic': simulated_diagnostic,
+            'precision': simulated_precision,
+            'filename': filename # Return filename to display
+        })
     return jsonify({'error': 'Something went wrong with the upload'}), 500
 
 if __name__ == '__main__':
