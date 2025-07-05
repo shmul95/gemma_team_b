@@ -7,40 +7,71 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Font Awesome for sun/moon icon -->
+    <!-- Font Awesome (kept for general use, though theme toggle removed) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Link to external CSS file -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="p-8 flex items-center justify-center">
 
-    <div class="bg-gray-700 p-8 rounded-xl shadow-lg flex flex-col lg:flex-row gap-8 w-full max-w-6xl h-full">
+    <div class="app-container flex flex-col lg:flex-row gap-8 w-full max-w-6xl h-full">
 
-        <!-- Left Column: Drag & Drop and Precision Zone -->
-        <div class="flex flex-col gap-6 lg:w-1/2">
-            <!-- Drag and Drop Area -->
-            <div id="drop-area" class="drag-drop-area flex flex-col items-center justify-center p-6 w-full h-80 rounded-lg cursor-pointer">
-                <input type="file" id="fileElem" accept="image/*" class="hidden">
-                <p class="text-gray-500 text-center mb-2 text-lg">Drag & Drop IRM Image Here</p> <!-- Increased text size -->
-                <p class="text-gray-400 text-base">or click to select file</p> <!-- Increased text size -->
-                <img id="image-preview" src="" alt="Image Preview" class="hidden mt-4 max-h-full max-w-full object-contain rounded-lg">
-            </div>
-
-            <!-- AI Precision Zone -->
-            <div class="bg-gray-600 p-6 rounded-lg shadow-inner flex-grow">
-                <h3 class="text-3xl font-semibold text-gray-200 mb-2">AI Precision Details:</h3> <!-- Increased text size -->
-                <div id="precision-output" class="precision-zone text-gray-300 text-2xl text-base leading-relaxed"> <!-- Increased text size -->
-                    <p class="text-gray-400 text-base">Drop an image to see AI analysis details.</p> <!-- Increased text size -->
-                </div>
-            </div>
+        <!-- Left Sidebar: History of Requests -->
+        <div class="sidebar w-full lg:w-1/4 p-6 rounded-xl shadow-lg overflow-y-auto">
+            <h2 class="text-2xl font-bold mb-4 text-gray-200">Request History</h2>
+            <ul id="history-list">
+                {% if history %}
+                    {% for item in history %}
+                        <li class="history-item p-3 rounded-lg mb-2 cursor-pointer transition-colors duration-200"
+                            data-diagnostic="{{ item.diagnostic }}"
+                            data-precision="{{ item.precision }}"
+                            data-filename="{{ item.filename }}"
+                            data-image="{{ item.image_data }}"> <!-- Added data-image -->
+                            <p class="font-medium text-gray-300 text-base">{{ item.filename }}</p>
+                            <p class="text-sm text-gray-400 truncate">{{ item.diagnostic }}</p>
+                        </li>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-400 text-base">No requests yet.</p>
+                {% endif %}
+            </ul>
         </div>
 
-        <!-- Right Column: Diagnostic Output -->
-        <div class="flex flex-col lg:w-1/2">
-            <div class="bg-gray-600 p-8 rounded-xl shadow-md flex-grow diagnostic-text">
-                <h2 class="text-3xl font-bold text-gray-200 mb-4">AI Diagnostic:</h2> <!-- Increased text size -->
-                <div id="diagnostic-output" class="text-gray-300 text-2xl font-medium leading-relaxed"></div>
-                <div id="loading-indicator" class="hidden mt-4 text-grey-600 font-semibold text-xl"></div>
+        <!-- Main Content Area (Drag & Drop, Precision, Diagnostic) -->
+        <div class="main-content flex flex-col gap-8 lg:w-3/4">
+            <div class="app-card p-8 rounded-xl shadow-lg flex flex-col lg:flex-row gap-8 w-full h-full">
+
+                <!-- Left Column: Drag & Drop and Precision Zone -->
+                <div class="flex flex-col gap-6 lg:w-1/2">
+                    <!-- Drag and Drop Area -->
+                    <div id="drop-area" class="drag-drop-area flex flex-col items-center justify-center p-6 w-full h-80 rounded-lg cursor-pointer">
+                        <input type="file" id="fileElem" accept="image/*" class="hidden">
+                        <p class="text-gray-500 text-center mb-2 text-lg">Drag & Drop IRM Image Here</p>
+                        <p class="text-gray-400 text-base">or click to select file</p>
+                        <img id="image-preview" src="" alt="Image Preview" class="hidden mt-4 max-h-full max-w-full object-contain rounded-lg">
+                    </div>
+
+                    <!-- AI Precision Zone -->
+                    <div class="bg-gray-600 p-6 rounded-lg shadow-inner flex-grow">
+                        <h3 class="text-xl font-semibold text-gray-200 mb-2">AI Precision Details:</h3>
+                        <div id="precision-output" class="precision-zone text-gray-300 text-base leading-relaxed">
+                            <p class="text-gray-400 text-base">Drop an image to see AI analysis details.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Diagnostic Output -->
+                <div class="flex flex-col lg:w-1/2">
+                    <div class="bg-gray-600 p-8 rounded-xl shadow-md flex-grow diagnostic-text">
+                        <h2 class="text-3xl font-bold text-gray-200 mb-4">AI Diagnostic:</h2>
+                        <div id="diagnostic-output" class="text-gray-300 text-2xl font-medium leading-relaxed">
+                            <p>Awaiting image for diagnostic...</p>
+                        </div>
+                        <div id="loading-indicator" class="hidden mt-4 text-grey-600 font-semibold text-xl">
+                            Analyzing image...
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -52,6 +83,40 @@
         const diagnosticOutput = document.getElementById('diagnostic-output');
         const precisionOutput = document.getElementById('precision-output');
         const loadingIndicator = document.getElementById('loading-indicator');
+        const historyList = document.getElementById('history-list');
+
+        // Function to add a new item to the history sidebar
+        function addHistoryItem(filename, diagnostic, precision, imageData) { // Added imageData parameter
+            const listItem = document.createElement('li');
+            listItem.className = 'history-item p-3 rounded-lg mb-2 cursor-pointer transition-colors duration-200 hover:bg-gray-700'; // Added hover state
+            listItem.setAttribute('data-diagnostic', diagnostic);
+            listItem.setAttribute('data-precision', precision);
+            listItem.setAttribute('data-filename', filename);
+            listItem.setAttribute('data-image', imageData); // Set data-image attribute
+            listItem.innerHTML = `
+                <p class="font-medium text-gray-300 text-base">${filename}</p>
+                <p class="text-sm text-gray-400 truncate">${diagnostic}</p>
+            `;
+            // Add new item to the top of the list
+            if (historyList.firstChild && historyList.firstChild.tagName === 'P') {
+                // If "No requests yet." is present, remove it
+                historyList.removeChild(historyList.firstChild);
+            }
+            historyList.prepend(listItem);
+
+            // Add click listener for the new history item
+            listItem.addEventListener('click', () => {
+                diagnosticOutput.innerHTML = `<p>${listItem.dataset.diagnostic}</p>`;
+                precisionOutput.innerHTML = `<p>${listItem.dataset.precision}</p>`;
+                
+                // Display the image from history
+                imagePreview.src = listItem.dataset.image;
+                imagePreview.classList.remove('hidden');
+                dropArea.querySelector('p:nth-of-type(1)').classList.add('hidden');
+                dropArea.querySelector('p:nth-of-type(2)').classList.add('hidden');
+            });
+        }
+
 
         // Prevent default drag behaviors
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -104,7 +169,6 @@
 
             const file = files[0];
             if (!file.type.startsWith('image/')) {
-                // Using a custom message box instead of alert()
                 displayMessageBox('Please drop an image file (e.g., JPG, PNG, GIF).');
                 return;
             }
@@ -114,7 +178,6 @@
             reader.onload = function(e) {
                 imagePreview.src = e.target.result;
                 imagePreview.classList.remove('hidden');
-                // Hide initial text
                 dropArea.querySelector('p:nth-of-type(1)').classList.add('hidden');
                 dropArea.querySelector('p:nth-of-type(2)').classList.add('hidden');
             };
@@ -126,8 +189,8 @@
 
         async function uploadFile(file) {
             loadingIndicator.classList.remove('hidden');
-            diagnosticOutput.innerHTML = '<p class="text-gray-500 text-lg">Analyzing image...</p>'; <!-- Updated text size here too -->
-            precisionOutput.innerHTML = '<p class="text-gray-500 text-base">Waiting for AI precision details...</p>'; <!-- Updated text size here too -->
+            diagnosticOutput.innerHTML = ''; // Clear diagnostic output when loading starts
+            precisionOutput.innerHTML = '<p class="text-gray-500 text-base">Waiting for AI precision details...</p>';
 
             const formData = new FormData();
             formData.append('file', file);
@@ -145,20 +208,54 @@
                 const result = await response.json();
 
                 if (result.error) {
-                    diagnosticOutput.innerHTML = `<p class="text-red-600 text-lg">Error: ${result.error}</p>`; <!-- Updated text size -->
-                    precisionOutput.innerHTML = `<p class="text-red-600 text-base">Error during analysis.</p>`; <!-- Updated text size -->
+                    diagnosticOutput.innerHTML = `<p class="text-red-600 text-lg">Error: ${result.error}</p>`;
+                    precisionOutput.innerHTML = `<p class="text-red-600 text-base">Error during analysis.</p>`;
                 } else {
                     diagnosticOutput.innerHTML = `<p>${result.diagnostic}</p>`;
                     precisionOutput.innerHTML = `<p>${result.precision}</p>`;
+                    // Add the new request to the history sidebar, including the image data
+                    // Note: The Flask backend must return 'image_data' (base64) in its response.
+                    addHistoryItem(result.filename, result.diagnostic, result.precision, result.image_data);
                 }
             } catch (error) {
                 console.error('Upload failed:', error);
-                diagnosticOutput.innerHTML = `<p class="text-red-600 text-lg">Failed to get diagnostic. Please try again.</p>`; <!-- Updated text size -->
-                precisionOutput.innerHTML = `<p class="text-red-600 text-base">Could not retrieve precision details.</p>`; <!-- Updated text size -->
+                diagnosticOutput.innerHTML = `<p class="text-red-600 text-lg">Failed to get diagnostic. Please try again.</p>`;
+                precisionOutput.innerHTML = `<p class="text-red-600 text-base">Could not retrieve precision details.</p>`;
             } finally {
                 loadingIndicator.classList.add('hidden');
             }
         }
+
+        // Custom message box function (replaces alert)
+        function displayMessageBox(message) {
+            const messageBox = document.createElement('div');
+            messageBox.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            messageBox.innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
+                    <p class="text-xl font-semibold mb-4">${message}</p>
+                    <button id="message-box-ok" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">OK</button>
+                </div>
+            `;
+            document.body.appendChild(messageBox);
+
+            document.getElementById('message-box-ok').addEventListener('click', () => {
+                document.body.removeChild(messageBox);
+            });
+        }
+
+        // Add event listeners to existing history items on page load
+        document.querySelectorAll('.history-item').forEach(item => {
+            item.addEventListener('click', () => {
+                diagnosticOutput.innerHTML = `<p>${item.dataset.diagnostic}</p>`;
+                precisionOutput.innerHTML = `<p>${item.dataset.precision}</p>`;
+                
+                // Display the image from history
+                imagePreview.src = item.dataset.image;
+                imagePreview.classList.remove('hidden');
+                dropArea.querySelector('p:nth-of-type(1)').classList.add('hidden');
+                dropArea.querySelector('p:nth-of-type(2)').classList.add('hidden');
+            });
+        });
     </script>
 </body>
 </html>
