@@ -83,6 +83,7 @@ def upload_file():
 
             # Make the prediction request
             print(f"Sending request to Vertex AI endpoint: {endpoint.resource_name}")
+            print(instances)
             response = endpoint.predict(instances=instances, parameters={}) # parameters can be an empty dict if not needed
 
             # Extract the prediction
