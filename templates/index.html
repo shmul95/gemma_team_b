@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Imaging AI Maquette</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for sun/moon icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Link to external CSS file -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="p-8 flex items-center justify-center">
+
+    <div class="bg-gray-700 p-8 rounded-xl shadow-lg flex flex-col lg:flex-row gap-8 w-full max-w-6xl h-full">
+
+        <!-- Left Column: Drag & Drop and Precision Zone -->
+        <div class="flex flex-col gap-6 lg:w-1/2">
+            <!-- Drag and Drop Area -->
+            <div id="drop-area" class="drag-drop-area flex flex-col items-center justify-center p-6 w-full h-80 rounded-lg cursor-pointer">
+                <input type="file" id="fileElem" accept="image/*" class="hidden">
+                <p class="text-gray-500 text-center mb-2">Drag & Drop IRM Image Here</p>
+                <p class="text-gray-400 text-sm">or click to select file</p>
+                <img id="image-preview" src="" alt="Image Preview" class="hidden mt-4 max-h-full max-w-full object-contain rounded-lg">
+            </div>
+
+            <!-- AI Precision Zone -->
+            <div class="bg-gray-600 p-6 rounded-lg shadow-inner flex-grow">
+                <h3 class="text-lg font-semibold text-gray-200 mb-2">AI Precision Details:</h3>
+                <div id="precision-output" class="precision-zone text-gray-700 text-sm leading-relaxed">
+                    <!-- AI precision details will appear here -->
+                    <p class="text-gray-400">Drop an image to see AI analysis details.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Diagnostic Output -->
+        <div class="flex flex-col lg:w-1/2">
+            <div class="bg-gray-600 p-8 rounded-xl shadow-md flex-grow diagnostic-text">
+                <h2 class="text-2xl font-bold text-gray-200 mb-4">AI Diagnostic:</h2>
+                <div id="diagnostic-output" class="text-gray-400 text-xl font-medium leading-relaxed">
+                    <!-- AI diagnostic will appear here -->
+                    <p>Awaiting image for diagnostic...</p>
+                </div>
+                <div id="loading-indicator" class="hidden mt-4 text-grey-600 font-semibold">
+                    Analyzing image...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropArea = document.getElementById('drop-area');
+        const fileElem = document.getElementById('fileElem');
+        const imagePreview = document.getElementById('image-preview');
+        const diagnosticOutput = document.getElementById('diagnostic-output');
+        const precisionOutput = document.getElementById('precision-output');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const themeToggle = document.getElementById('theme-toggle');
+        const body = document.body;
+
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false); // Prevent default for entire body
+        });
+
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Highlight drop area when dragging over
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropArea.classList.add('hover');
+        }
+
+        function unhighlight(e) {
+            dropArea.classList.remove('hover');
+        }
+
+        // Handle dropped files
+        dropArea.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        // Handle file selection via click
+        dropArea.addEventListener('click', () => {
+            fileElem.click();
+        });
+
+        fileElem.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+
+            const file = files[0];
+            if (!file.type.startsWith('image/')) {
+                // Using a custom message box instead of alert()
+                displayMessageBox('Please drop an image file (e.g., JPG, PNG, GIF).');
+                return;
+            }
+
+            // Display image preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.src = e.target.result;
+                imagePreview.classList.remove('hidden');
+                // Hide initial text
+                dropArea.querySelector('p:nth-of-type(1)').classList.add('hidden');
+                dropArea.querySelector('p:nth-of-type(2)').classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+
+            // Simulate upload and AI processing
+            uploadFile(file);
+        }
+
+        async function uploadFile(file) {
+            loadingIndicator.classList.remove('hidden');
+            diagnosticOutput.innerHTML = '<p class="text-gray-500">Analyzing image...</p>';
+            precisionOutput.innerHTML = '<p class="text-gray-500">Waiting for AI precision details...</p>';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.error) {
+                    diagnosticOutput.innerHTML = `<p class="text-red-600">Error: ${result.error}</p>`;
+                    precisionOutput.innerHTML = `<p class="text-red-600">Error during analysis.</p>`;
+                } else {
+                    diagnosticOutput.innerHTML = `<p>${result.diagnostic}</p>`;
+                    precisionOutput.innerHTML = `<p>${result.precision}</p>`;
+                }
+            } catch (error) {
+                console.error('Upload failed:', error);
+                diagnosticOutput.innerHTML = `<p class="text-red-600">Failed to get diagnostic. Please try again.</p>`;
+                precisionOutput.innerHTML = `<p class="text-red-600">Could not retrieve precision details.</p>`;
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        // Custom message box function (replaces alert)
+        function displayMessageBox(message) {
+            const messageBox = document.createElement('div');
+            messageBox.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            messageBox.innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
+                    <p class="text-lg font-semibold mb-4">${message}</p>
+                    <button id="message-box-ok" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">OK</button>
+                </div>
+            `;
+            document.body.appendChild(messageBox);
+
+            document.getElementById('message-box-ok').addEventListener('click', () => {
+                document.body.removeChild(messageBox);
+            });
+        }
+    </script>
+</body>
+</html>
+
